@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Weather App</title>
+  <style>
+    .mainbody {
+      font-family: Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      transition: background-image 0.5s ease-in-out;
+      background-color:rgb(7, 46, 56) ; /* <-- Add this line */
+      background-size: cover;
+      background-position: center;
+    }
+    .container {
+      text-align: center;
+      background: url('rainy.jpg');
+      padding: 20px;
+      border-radius: 15px;
+      width: 1000px;
+      overflow-y: auto;
+      max-height: 90vh;
+      color:rgb(234, 238, 238);
+      background-size: cover;
+    }
+    input {
+      padding: 10px;
+      width: 80%;
+      border: none;
+      border-radius: 8px;
+      background-color: #e0e2e5;
+      font-size: 16px;
+      margin-bottom: 10px;
+      color:rgba(11, 11, 11, 0.955)
+    }
+    .weatherApp{
+      color:black;
+      font-size: 20px;
+      font-weight: bold;
+      font-style: italic;
+    }
+    button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      background-color: #788dbb;
+      color: #021418;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .weather img {
+      width: 80px;
+    }
+    .forecast {
+      display: flex;
+      flex-direction: row; /* make it horizontal */
+      gap: 10px;
+      margin-top: 20px;
+      overflow-x: auto; /* allows scrolling on smaller screens */
+      justify-content: space-between;
+    }
+    .forecast-item {
+      background: rgba(15, 116, 134, 0.889);
+      border-radius: 10px;
+      padding: 10px;
+      width: 120px;
+      flex-shrink: 0; /* prevent shrinking */
+      text-align: center;
+      color:rgba(6, 6, 6, 0.952)
+    }
+
+  </style>
+</head>
+<body class="mainbody">
+  <div class="container">
+    <div class="weatherApp">
+      <h2>Weather App</h2>
+    </div>
+    <input type="text" id="city" placeholder="Enter city" />
+    <button onclick="getWeather()">Get Weather</button>
+    <div class="weather" id="weatherInfo"></div>
+    <div id="forecast"></div>
+  </div>
+
+  <script>
+    async function getWeather() {
+      const city = document.getElementById("city").value;
+      const apiKey = "3eab15326a8f8e4e3f5fbe010a553750"; // Your OpenWeatherMap API key
+
+      const weatherUrl = `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${apiKey}&units=metric`;
+      const forecastUrl = `https://api.openweathermap.org/data/2.5/forecast?q=${city}&appid=${apiKey}&units=metric`;
+
+      try {
+        const [weatherRes, forecastRes] = await Promise.all([
+          fetch(weatherUrl),
+          fetch(forecastUrl),
+        ]);
+
+        const weatherData = await weatherRes.json();
+        const forecastData = await forecastRes.json();
+
+        if (weatherData.cod === 200 && forecastData.cod === "200") {
+          const icon = weatherData.weather[0].icon;
+          const iconUrl = `https://openweathermap.org/img/wn/${icon}@2x.png`;
+          const condition = weatherData.weather[0].main.toLowerCase();
+          const localTime = new Date((weatherData.dt + weatherData.timezone) * 1000)
+            .toUTCString()
+            .replace("GMT", ""); // local time adjusted
+
+          setBackground(condition);
+
+          document.getElementById("weatherInfo").innerHTML = `
+            <h3>${weatherData.name}, ${weatherData.sys.country}</h3>
+            <img src="${iconUrl}" alt="${weatherData.weather[0].description}" />
+            <p><strong>${weatherData.weather[0].main}</strong></p>
+            <p>Temperature: ${weatherData.main.temp}°C</p>
+            <p>Humidity: ${weatherData.main.humidity}%</p>
+            <p>Wind: ${weatherData.wind.speed} m/s</p>
+            <p>Local Time: ${localTime}</p>
+          `;
+
+          // 5-day forecast (every 24 hours, skip by 8 intervals of 3 hours)
+          const forecastHtml = forecastData.list
+            .filter((_, i) => i % 8 === 0)
+            .map(item => {
+              const date = new Date(item.dt * 1000).toDateString();
+              const icon = item.weather[0].icon;
+              return `
+                <div class="forecast-item">
+                  <h4>${date}</h4>
+                  <img src="https://openweathermap.org/img/wn/${icon}@2x.png" />
+                  <p>${item.weather[0].main}</p>
+                  <p>Temp: ${item.main.temp}°C</p>
+                </div>
+              `;
+            })
+            .join("");
+
+          document.getElementById("forecast").innerHTML = `
+            <h3>5-Day Forecast</h3>
+            <div class="forecast">${forecastHtml}</div>
+          `;
+        } else {
+          document.getElementById("weatherInfo").innerHTML = `<p>City not found.</p>`;
+          document.getElementById("forecast").innerHTML = "";
+        }
+      } catch (error) {
+        document.getElementById("weatherInfo").innerHTML = `<p>Error fetching data.</p>`;
+        document.getElementById("forecast").innerHTML = "";
+      }
+    }
+
+    function setBackground(condition) {
+      let imageUrl;
+
+      switch (condition) {
+        case 'clear':
+          imageUrl = 'https://source.unsplash.com/1600x900/?sunny,sky';
+          break;
+        case 'clouds':
+          imageUrl = 'https://source.unsplash.com/1600x900/?cloudy';
+          break;
+        case 'rain':
+        case 'drizzle':
+          imageUrl = 'https://source.unsplash.com/1600x900/?rainy,weather';
+          break;
+        case 'thunderstorm':
+          imageUrl = 'https://source.unsplash.com/1600x900/?thunderstorm';
+          break;
+        case 'snow':
+          imageUrl = 'https://source.unsplash.com/1600x900/?snow';
+          break;
+        case 'mist':
+        case 'haze':
+        case 'fog':
+          imageUrl = 'https://source.unsplash.com/1600x900/?fog';
+          break;
+        default:
+          imageUrl = 'https://source.unsplash.com/1600x900/?weather,nature';
+          break;
+      }
+
+      document.body.style.backgroundImage = `url('${imageUrl}')`;
+    }
+  </script>
+</body>
+</html>
